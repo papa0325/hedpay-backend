@@ -1,0 +1,146 @@
+name: Node-CI
+
+on:
+  push:
+    branches: [master, develop]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: "contains(github.event.head_commit.message, '[update]')"
+
+    steps:
+      - name: Copy code files to container
+        uses: actions/checkout@v2
+
+      - name: Install Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: '12.x'
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Run build task
+        run: npm run build
+
+  deploy-develop:
+    runs-on: ubuntu-18.04
+    needs: build
+    if: github.ref == 'refs/heads/develop' && contains(github.event.head_commit.message, '[update]')
+
+    steps:
+      - name: Copy code files to container
+        uses: actions/checkout@v2
+
+      - name: Environment preparation
+        run: |
+          mkdir -p ~/.ssh/
+          touch ~/.ssh/id_rsa
+          chmod -R go= ~/.ssh
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_SSH_KEY }}" >> ~/.ssh/id_rsa          
+          sudo apt-add-repository -y -u ppa:ansible/ansible          
+          sudo apt-get install -y rsync
+          sudo apt-get install -y ansible
+
+      - name: Deploy to Server
+        run: |
+          chmod 700 ci-scripts
+          cd ci-scripts
+          ansible-playbook -i "${{ secrets.REMOTE_HOST }}" -e "ansible_user=${{ secrets.REMOTE_USER }} \
+            TARGET_NAME=${{ secrets.TARGET_NAME_TEST }} \
+            SERVER_PORT=${{ secrets.SERVER_PORT_TEST }} \
+            SERVER_URL=${{ secrets.SERVER_URL_TEST }} \
+            APP_URL=${{ secrets.APP_URL_TEST }} \
+            backend_bin=${{secrets.BACKEND_BIN_TEST}} \
+            DB_LINK=${{ secrets.DB_LINK_TEST }} \
+            SCHEDULER_LINK=${{ secrets.SCHEDULER_LINK_TEST }} \
+            DB_NAME=${{ secrets.DB_NAME_TEST }} \
+            DB_USER=${{ secrets.DB_USER_TEST }} \
+            DB_PASSWORD=${{ secrets.DB_PASSWORD_TEST }} \
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} \
+            JWT_ADMIN_ACCESS_SECRET=${{ secrets.JWT_ADMIN_ACCESS_SECRET }} \
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} \
+            EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }} \
+            GATEWAY_URL=${{ secrets.GATEWAY_URL_TEST }} \
+            GATEWAY_USERNAME=${{ secrets.GATEWAY_USERNAME_TEST }} \
+            GATEWAY_PASSWORD=${{ secrets.GATEWAY_PASSWORD_TEST }} \
+            GATEWAY_SERVER_ID=${{ secrets.GATEWAY_SERVER_ID_TEST }} \
+            GATEWAY_SERVER_PASSWORD=${{ secrets.GATEWAY_SERVER_PASSWORD_TEST }} \
+            GATEWAY_IPN=${{ secrets.GATEWAY_IPN_TEST }} \
+            GATEWAY_2FA_KEY=${{ secrets.GATEWAY_2FA_KEY_TEST }} \
+            COIN_MARKET_API_KEY=${{ secrets.COIN_MARKET_API_KEY }} \
+            NOTIFICATION_REST_TOKEN=${{ secrets.NOTIFICATION_REST_TOKEN }} \
+            RECAPTCHA_SECRET=${{ secrets.RECAPTCHA_SECRET }} \
+            KYC_URL=${{ secrets.KYC_URL }} \
+            ADMIN_BACKEND_URL=${{ secrets.ADMIN_BACKEND_URL_DEVELOP }} \
+            ADMIN_BACKEND_PASSWORD=${{ secrets.ADMIN_BACKEND_PASSWORD_DEVELOP }} \
+            ADMIN_BACKEND_USERNAME=${{ secrets.ADMIN_BACKEND_USERNAME_DEVELOP }} \
+            BACKEND_THIS_USERNAME=${{ secrets.BACKEND_THIS_USERNAME_DEVELOP }} \
+            BACKEND_THIS_PASSWORD=${{ secrets.BACKEND_THIS_PASSWORD_DEVELOP }} \
+            NETWORK_TYPE=${{ secrets.NETWORK_TYPE_TEST }} \
+            DEX_URL=${{ secrets.DEX_URL_TEST }} \
+            DEX_SERVER_ID=${{ secrets.DEX_SERVER_ID_TEST }} \
+            DEX_SERVER_PASSWORD=${{ secrets.DEX_SERVER_PASSWORD_TEST }} \
+            SRC_DIR=${{ github.workspace }}/" backend-update.yml;
+  deploy-master:
+    runs-on: ubuntu-18.04
+    needs: build
+    if: github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[update]')
+
+    steps:
+      - name: Copy code files to container
+        uses: actions/checkout@v2
+
+      - name: Environment preparation
+        run: |
+          mkdir -p ~/.ssh/
+          touch ~/.ssh/id_rsa
+          chmod -R go= ~/.ssh
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_SSH_KEY }}" >> ~/.ssh/id_rsa          
+          sudo apt-add-repository -y -u ppa:ansible/ansible          
+          sudo apt-get install -y rsync
+          sudo apt-get install -y ansible
+
+      - name: Deploy to Server
+        run: |
+          chmod 700 ci-scripts
+          cd ci-scripts
+          ansible-playbook -i "${{ secrets.REMOTE_HOST }}" -e "ansible_user=${{ secrets.REMOTE_USER }} \
+            TARGET_NAME=${{ secrets.TARGET_NAME }} \
+            SERVER_PORT=${{ secrets.SERVER_PORT }} \
+            SERVER_URL=${{ secrets.SERVER_URL }} \
+            APP_URL=${{ secrets.APP_URL }} \
+            backend_bin=${{secrets.BACKEND_BIN}} \
+            DB_LINK=${{ secrets.DB_LINK }} \
+            SCHEDULER_LINK=${{ secrets.SCHEDULER_LINK }} \
+            DB_NAME=${{ secrets.DB_NAME }} \
+            DB_USER=${{ secrets.DB_USER }} \
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }} \
+            JWT_ADMIN_ACCESS_SECRET=${{ secrets.JWT_ADMIN_ACCESS_SECRET }} \
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }} \
+            EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }} \
+            GATEWAY_URL=${{ secrets.GATEWAY_URL }} \
+            GATEWAY_USERNAME=${{ secrets.GATEWAY_USERNAME }} \
+            GATEWAY_PASSWORD=${{ secrets.GATEWAY_PASSWORD }} \
+            GATEWAY_SERVER_ID=${{ secrets.GATEWAY_SERVER_ID }} \
+            GATEWAY_SERVER_PASSWORD=${{ secrets.GATEWAY_SERVER_PASSWORD }} \
+            GATEWAY_IPN=${{ secrets.GATEWAY_IPN }} \
+            GATEWAY_2FA_KEY=${{ secrets.GATEWAY_2FA_KEY }} \
+            COIN_MARKET_API_KEY=${{ secrets.COIN_MARKET_API_KEY }} \
+            NOTIFICATION_REST_TOKEN=${{ secrets.NOTIFICATION_REST_TOKEN }} \
+            RECAPTCHA_SECRET=${{ secrets.RECAPTCHA_SECRET }} \
+            KYC_URL=${{ secrets.KYC_URL }} \
+            ADMIN_BACKEND_URL=${{ secrets.ADMIN_BACKEND_URL_MASTER }} \
+            ADMIN_BACKEND_PASSWORD=${{ secrets.ADMIN_BACKEND_PASSWORD_MASTER }} \
+            ADMIN_BACKEND_USERNAME=${{ secrets.ADMIN_BACKEND_USERNAME_MASTER }} \
+            BACKEND_THIS_USERNAME=${{ secrets.BACKEND_THIS_USERNAME_MASTER }} \
+            BACKEND_THIS_PASSWORD=${{ secrets.BACKEND_THIS_PASSWORD_MASTER }} \
+            NETWORK_TYPE=${{ secrets.NETWORK_TYPE }} \
+            DEX_URL=${{ secrets.DEX_URL_TEST }} \
+            DEX_SERVER_ID=${{ secrets.DEX_SERVER_ID_TEST }} \
+            DEX_SERVER_PASSWORD=${{ secrets.DEX_SERVER_PASSWORD_TEST }} \
+            SRC_DIR=${{ github.workspace }}/" backend-update.yml;
